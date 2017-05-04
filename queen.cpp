@@ -1,12 +1,13 @@
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 
 class Chess{
 public:
+    int n;
     int *q;
     int *lc;//右上-左下对角线
     int *rc;//左上-右下对角线
-    int n;
     int h;
 
     Chess(int n):n(n),q(new int[n]()),lc(new int[2*n-1]()),rc(new int[2*n-1]()){}
@@ -69,50 +70,67 @@ public:
     }
 
     void init(){
-        int i,p,tmp;
-        for(int i=0;i<2*n-1;i++){
-            lc[i]=rc[i]=0;
-        }
-        int *t=new int[n];
-        for(i=0;i<n;i++)
-            t[i]=i;
-        for(i=0;i<n;i++){
-            for(int j=0;j<100;j++){
-                p=rand()%(n-i);
-                if(lc[i+t[p]]==0&&rc[i+n-1-t[p]]==0)
-                    break;
+        do{
+            int i,p,tmp;
+            for(int i=0;i<2*n-1;i++){
+                lc[i]=rc[i]=0;
             }
-            q[i]=t[p];
-            lc[i+q[i]]++;
-            rc[i+n-1-q[i]]++;
-            tmp=t[p];
-            t[p]=t[n-i-1];
-            t[n-i-1]=tmp;
-        }
-        delete[] t;
-        recalculate_crosses();
+            int *t=new int[n];
+            for(i=0;i<n;i++)
+                t[i]=i;
+            for(i=0;i<n;i++){
+                for(int j=0;j<100;j++){
+                    p=rand()%(n-i);
+                    if(lc[i+t[p]]==0&&rc[i+n-1-t[p]]==0&&i+n-1-t[p]!=n-1)
+                        break;
+                }
+                q[i]=t[p];
+                lc[i+q[i]]++;
+                rc[i+n-1-q[i]]++;
+                tmp=t[p];
+                t[p]=t[n-i-1];
+                t[n-i-1]=tmp;
+            }
+            delete[] t;
+            recalculate_crosses();
+        }while(h==0&&rc[n-1]>0); //处理初始h=0并且主对角线有皇后的特殊情况
     }
 
-    void output(){
+    void print(){
         int i,j;
         for(i=0;i<n;i++){
             for(j=0;j<n;j++){
-                putchar(q[i]==j?'Q':'.');
+                putchar(q[i]==j?'Q':q[j]==i?'q':'.');
             }
             putchar('\n');
         }
-        printf("h=%d\n",h);
+    }
+
+    void write(double totaltime){
+        FILE *fp=fopen("output_hill_climbing.txt","w");
+        int *t=new int[n];
+        for(int i=0;i<n;i++){
+            fprintf(fp,"%d\n",q[i]+1);
+            t[q[i]]=i;
+        }
+        for(int i=0;i<n;i++){
+            fprintf(fp,"%d\n",t[i]+1);
+        }
+        fprintf(fp,"%.3f\n",totaltime);
+        fclose(fp);
     }
 };
 
 void solve(int n){
+    clock_t start, finish;
+    double totaltime;
+    start = clock();
     Chess c(n);
     c.init();
     int count=0;
     while(c.h>0){
-        int mi,mj,mh=c.h,tries=1;
-        //测试
-        for(int ii=0;ii<n;ii++){
+        int mh=c.h,tries=1;
+        for(int ii=0;ii<n;ii++){ //随机找后继
             for(int jj=0;jj<n;jj++){
                 /*int i=0;
                 while(c.lc[i+c.q[i]]==0&&c.rc[i+n-1-c.q[i]]==0)*/
@@ -120,9 +138,7 @@ void solve(int n){
                 int j=rand()%n;
                 if(i==j)continue;
                 c.swap(i,j);
-                if(c.h<mh){
-                    mi=i;
-                    mj=j;
+                if(c.h<mh&&c.rc[n-1]==0){
                     mh=c.h;
                     //优化：找到解就跑路
                     goto exit;
@@ -131,13 +147,10 @@ void solve(int n){
                 tries++;
             }
         }
-        //
         for(int i=0;i<n;i++){ //找到h最小的后继
             for(int j=i+1;j<n;j++){
                 c.swap(i,j);
-                if(c.h<mh){
-                    mi=i;
-                    mj=j;
+                if(c.h<mh&&c.rc[n-1]==0){
                     mh=c.h;
                     //优化：找到解就跑路
                     goto exit;
@@ -146,26 +159,29 @@ void solve(int n){
                 tries++;
             }
         }
-        if(mh<c.h){ //有更好的后继
-            c.swap(mi,mj);
-        }else{ //没有更好后继，重新开始
-            c.init();
-            printf("Restart!\n");
-        }
+        c.init();
+        printf("Restart!\n");
+        continue;
 exit:
         count++;
         if(c.h<10000||count%10000==0)
             printf("h=%d with %d tries\n",c.h,tries);
     }
-    c.recalculate_crosses();
+    finish = clock();
+	totaltime = (double)(finish-start)/CLOCKS_PER_SEC;
+    c.recalculate_crosses(); //验证解的正确性
     printf("Solved n=%d queens with h=%d\n",n,c.h);
-    //c.output();
+    if(n<50)
+        c.print();
+    c.write(totaltime);
 }
 
 int main(){
     int n;
     FILE *in=fopen("input.txt","r");
     fscanf(in,"%d",&n);
+    fclose(in);
+    //srand(time(0));
     solve(n);
     return 0;
 }
