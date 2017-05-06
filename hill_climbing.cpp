@@ -2,6 +2,10 @@
 #include <cstdlib>
 #include <ctime>
 
+//#define simulated_annealing
+
+using namespace std;
+
 class Chess{
 public:
     int n;
@@ -9,12 +13,23 @@ public:
     int *lc;//右上-左下对角线
     int *rc;//左上-右下对角线
     int h;
+    int *conflict;
+    int nconflict;
 
-    Chess(int n):n(n),q(new int[n]()),lc(new int[2*n-1]()),rc(new int[2*n-1]()){}
+    Chess(int n):n(n),q(new int[n]()),lc(new int[2*n-1]()),rc(new int[2*n-1]()),conflict(new int[n]()){}
     ~Chess(){
         delete[] q;
         delete[] lc;
         delete[] rc;
+        delete[] conflict;
+    }
+
+    void recalculate_conflict(){
+        nconflict=0;
+        for(int i=0;i<n;i++){
+            if(lc[i+q[i]]>1||rc[i+n-1-q[i]]>1)
+                conflict[nconflict++]=i;
+        }
     }
 
     void recalculate_crosses(){
@@ -135,25 +150,13 @@ void solve(int n){
         int count=0;
         while(c.h>0){
             int mh=c.h,tries=1;
+            c.recalculate_conflict(); //优化：随机算法只找有冲突的
+            //for(int i=0;i<c.nconflict;i++)printf("%d\n",c.conflict[i]);
             for(int ii=0;ii<n;ii++){ //随机找后继
                 for(int jj=0;jj<n;jj++){
-                    /*int i=0;
-                    while(c.lc[i+c.q[i]]==0&&c.rc[i+n-1-c.q[i]]==0)*/
-                    int i=rand()%n;
+                    int i=c.conflict[rand()%c.nconflict];
                     int j=rand()%n;
                     if(i==j)continue;
-                    c.swap(i,j);
-                    if(c.h<mh&&c.rc[n-1]==0){
-                        mh=c.h;
-                        //优化：找到解就跑路
-                        goto exit;
-                    }
-                    c.swap(i,j);
-                    tries++;
-                }
-            }
-            for(int i=0;i<n;i++){ //找到h最小的后继
-                for(int j=i+1;j<n;j++){
                     c.swap(i,j);
                     if(c.h<mh&&c.rc[n-1]==0){
                         mh=c.h;
