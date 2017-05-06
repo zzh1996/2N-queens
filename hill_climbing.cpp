@@ -1,8 +1,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <cmath>
 
-//#define simulated_annealing
+#define simulated_annealing
 
 using namespace std;
 
@@ -143,6 +144,7 @@ public:
 void solve(int n){
     clock_t start, finish;
     double totaltime;
+    double T=1;
     start = clock();
     Chess c(n);
     if(n!=5){
@@ -158,10 +160,24 @@ void solve(int n){
                     int j=rand()%n;
                     if(i==j)continue;
                     c.swap(i,j);
-                    if(c.h<mh&&c.rc[n-1]==0){
-                        mh=c.h;
-                        //优化：找到解就跑路
-                        goto exit;
+                    if(c.rc[n-1]==0){
+#ifdef simulated_annealing
+                        T*=0.999;
+#endif
+                        if(c.h<mh){
+                            //优化：找到解就跑路
+                            goto exit;
+                        }
+#ifdef simulated_annealing //模拟退火
+                        else{
+                            double r=(double)rand()/RAND_MAX;
+                            double p=exp((mh-c.h-1)/T);
+                            if(r<p){
+                                printf("Choose a worse state at %g / %g, T=%g, dE=%d\n",r,p,T,mh-c.h-1);
+                                goto exit;
+                            }
+                        }
+#endif
                     }
                     c.swap(i,j);
                     tries++;
